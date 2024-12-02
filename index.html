@@ -10,14 +10,20 @@
     <div class="game-container">
       <div class="road">
         <div class="lane-divider"></div>
+        <div class="lane-divider"></div>
         <div class="car"></div>
-        <div class="obstacle obstacle-1">TRUE</div>
-        <div class="obstacle obstacle-2">FALSE</div>
       </div>
       <div class="controls">
-        <button id="left-btn">Move Left</button>
-        <button id="right-btn">Move Right</button>
+        <button id="start-btn">Start Game</button>
+        <button id="left-btn" disabled>Move Left</button>
+        <button id="right-btn" disabled>Move Right</button>
       </div>
+      <div class="score-board">Score: 0</div>
+    </div>
+    <div class="game-over" style="display: none">
+      <h1>Game Over</h1>
+      <p>Your Final Score: <span id="final-score"></span></p>
+      <button id="restart-btn">Restart Game</button>
     </div>
     <script src="script.js"></script>
   </body>

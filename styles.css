@@ -1,3 +1,4 @@
+/* General styles */
 body {
   margin: 0;
   display: flex;
@@ -13,41 +14,49 @@ body {
   text-align: center;
 }
 
+/* Road styling */
 .road {
   position: relative;
-  width: 300px;
+  width: 500px;
   height: 600px;
-  background: linear-gradient(
-    to bottom,
-    #848684,
-    #3e3f3e
-  ); /* Asphalt-like road color */
+  background: linear-gradient(to bottom, #848684, #3e3f3e);
   border: 10px solid white;
   border-radius: 10px;
   overflow: hidden;
 }
 
-/* The lane divider for white dashed lines */
+/* Lane divider for dashed white lines */
 .lane-divider {
   position: absolute;
-  top: 0;
-  left: 50%; /* Center the divider horizontally */
-  transform: translateX(-50%);
-  width: 10px;
-  height: 100%; /* Full height of the road */
-  background: repeating-linear-gradient(
-    to bottom,
-    white 0,
-    white 20px,
-    transparent 20px,
-    transparent 40px
-  ); /* Dashed pattern */
+  top: -60px; /* Initially placed above the road */
+  width: 2px; /* Line width */
+  height: 60px; /* Length of the divider line */
+  background-color: white; /* Color of the lane divider */
+  left: 50%; /* Position in the center of the road */
+  transform: translateX(-50%); /* Center it properly */
+  animation: moveLines 1s linear infinite;
 }
 
+/* Keyframes for animating the road lines */
+@keyframes moveLines {
+  0% {
+    top: -60px; /* Start above the road */
+  }
+  100% {
+    top: 100%; /* Move down past the road */
+  }
+}
+
+/* Animation for the second lane divider (delayed for effect) */
+.lane-divider:nth-child(2) {
+  animation-delay: 0.5s; /* Delay the second line to create a staggered effect */
+}
+
+/* Car styling */
 .car {
   position: absolute;
   bottom: 20px;
-  left: 120px;
+  left: 200px;
   width: 50px;
   height: 100px;
   background: url("car.png") no-repeat center center;
@@ -55,33 +64,9 @@ body {
   transition: left 0.3s;
 }
 
-.obstacle {
-  position: absolute;
-  width: 80px;
-  height: 80px;
-  background: orange;
-  border-radius: 50%;
-  color: white;
-  font-size: 18px;
-  font-weight: bold;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  animation: obstacleMove 4s linear infinite;
-}
-
-.obstacle-1 {
-  top: -100px;
-  left: 60px;
-}
-
-.obstacle-2 {
-  top: -300px;
-  left: 180px;
-}
-
+/* Controls */
 .controls {
-  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 button {
@@ -100,34 +85,67 @@ button:hover {
   background-color: #666;
 }
 
-.road::before,
-.road::after {
-  content: "";
+/* Scoreboard */
+.score-board {
   position: absolute;
-  width: 50px;
-  height: 600px;
-  top: 0;
-  background: url("bush.png") repeat-y center;
-  background-size: cover;
+  top: 10px;
+  left: 10px;
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px black;
 }
 
-.road::before {
-  left: -50px;
+/* Game Over screen */
+.game-over {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  text-align: center;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  opacity: 0;
 }
 
-.road::after {
-  right: -50px;
+.game-over h1 {
+  font-size: 40px;
+  margin-bottom: 20px;
 }
 
-@keyframes roadScroll {
+.game-over button {
+  padding: 10px 20px;
+  font-size: 18px;
+  color: white;
+  background: #444;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.game-over button:hover {
+  background: #666;
+}
+
+/* Fade-in animation for game over */
+@keyframes fadeIn {
   0% {
-    background-position: 0 0;
+    opacity: 0;
   }
   100% {
-    background-position: 0 600px;
+    opacity: 1;
   }
 }
 
+.game-over {
+  animation: fadeIn 1s ease-in-out;
+}
+
+/* Obstacle movement animation */
 @keyframes obstacleMove {
   0% {
     top: -100px;
@@ -135,4 +153,76 @@ button:hover {
   100% {
     top: 600px;
   }
+}
+.obstacle {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  background-size: cover;
+  animation: obstacleMove 4s linear infinite;
+}
+
+.score-board {
+  margin-top: 10px;
+  font-size: 20px;
+  color: #fff;
+}
+
+.game-over {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  text-align: center;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+#restart-btn,
+#start-btn {
+  margin-top: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background: #ff4500;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+@keyframes obstacleMove {
+  0% {
+    top: -60px;
+  }
+  100% {
+    top: 600px;
+  }
+}
+
+.game-over {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  text-align: center;
+  padding: 20px;
+  border-radius: 10px;
+  z-index: 1000;
+}
+
+#restart-btn {
+  margin-top: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background: #ff4500;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
 }
