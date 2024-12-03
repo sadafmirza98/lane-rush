@@ -1,6 +1,7 @@
-const roadWidth = 400; // Updated road width
+const roadWidth = 500; // Road width
 const laneWidth = roadWidth / 4; // Calculate lane width for 4 lanes
-let carPosition = roadWidth / 2 - laneWidth / 2; // Start the car in the middle of the road
+const carWidth = 50; // The width of the car
+let carPosition = roadWidth / 2 - carWidth / 2; // Start the car in the middle of the road
 
 // Updated the score display
 const scoreBoard = document.querySelector(".score-board");
@@ -24,7 +25,7 @@ function resetGame() {
   gameRunning = false;
   score = 0; // Reset score to 0
   scoreBoard.innerText = `Score: 0`; // Update the score display
-  carPosition = roadWidth / 2 - laneWidth / 2; // Reset car position to the middle lane
+  carPosition = roadWidth / 2 - carWidth / 2; // Reset car position to the middle lane
   car.style.left = `${carPosition}px`;
   gameOverModal.style.display = "none";
   clearInterval(obstacleInterval); // Clear obstacle spawn interval
@@ -125,17 +126,26 @@ function gameOver() {
   gameOverModal.style.display = "block"; // Show the game over modal
 }
 
-// Move Car
+// Move Car Left
 leftBtn.addEventListener("click", () => {
+  // Ensure car doesn't move beyond the left edge of the road
   if (carPosition > 0 && gameRunning) {
     carPosition -= laneWidth;
+    // Ensure car doesn't move out of the left side of the road
+    if (carPosition < 0) carPosition = 0;
     car.style.left = `${carPosition}px`;
   }
 });
 
+// Move Car Right
 rightBtn.addEventListener("click", () => {
-  if (carPosition < roadWidth - laneWidth && gameRunning) {
+  const maxCarPosition = roadWidth - carWidth; // Calculate the maximum right position for the car
+
+  // Ensure car doesn't move beyond the right edge of the road
+  if (carPosition < maxCarPosition && gameRunning) {
     carPosition += laneWidth;
+    // Ensure the car doesn't exceed the right edge
+    if (carPosition > maxCarPosition) carPosition = maxCarPosition;
     car.style.left = `${carPosition}px`;
   }
 });
