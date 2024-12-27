@@ -5,13 +5,16 @@ body {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: #71d25b;
+  background: url("background.webp") repeat-y;
+  background-size: cover;
+  animation: backgroundScrollVertical 30s linear infinite;
   overflow: hidden;
   font-family: Arial, sans-serif;
 }
 
 .game-container {
   text-align: center;
+  position: relative;
 }
 
 /* Road styling */
@@ -28,28 +31,37 @@ body {
 /* Lane divider for dashed white lines */
 .lane-divider {
   position: absolute;
-  top: -60px; /* Initially placed above the road */
-  width: 2px; /* Line width */
-  height: 60px; /* Length of the divider line */
-  background-color: white; /* Color of the lane divider */
-  left: 50%; /* Position in the center of the road */
-  transform: translateX(-50%); /* Center it properly */
-  animation: moveLines 1s linear infinite;
+  top: -60px;
+  width: 2px;
+  height: 80px;
+  background-color: white;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: moveLines 3s linear infinite;
+}
+
+.lane-divider:nth-child(2) {
+  animation-delay: 1.5s;
 }
 
 /* Keyframes for animating the road lines */
 @keyframes moveLines {
   0% {
-    top: -60px; /* Start above the road */
+    top: -60px;
   }
   100% {
-    top: 100%; /* Move down past the road */
+    top: 100%;
   }
 }
 
-/* Animation for the second lane divider (delayed for effect) */
-.lane-divider:nth-child(2) {
-  animation-delay: 0.5s; /* Delay the second line to create a staggered effect */
+/* Background vertical motion (bottom to top) */
+@keyframes backgroundScrollVertical {
+  0% {
+    background-position: 0 100%;
+  }
+  100% {
+    background-position: 0 0;
+  }
 }
 
 /* Car styling */
@@ -58,7 +70,7 @@ body {
   bottom: 20px;
   left: 200px;
   width: 50px;
-  height: 100px;
+  height: 150px;
   background: url("car.png") no-repeat center center;
   background-size: cover;
   transition: left 0.3s;
@@ -109,6 +121,7 @@ button:hover {
   border-radius: 10px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   opacity: 0;
+  z-index: 1000;
 }
 
 .game-over h1 {
