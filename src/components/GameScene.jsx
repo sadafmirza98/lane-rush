@@ -28,23 +28,20 @@ export default function GameScene({ targetLaneRef, carXRef, speedRef, shakeRef, 
     }
   })
 
-  const handleCrash = () => crash()
-
   return (
     <>
       {/*
-        LIGHTING STRATEGY — cinematic restraint:
-        - One soft hemisphere for ambient fill (no harsh shadows)
-        - One directional key light from above-front (readable silhouettes)
-        - NO point light spam — localized lights live inside car/obstacles only
-        - Fog is the depth tool, not geometry
+        LIGHTING — night city, not void:
+        Hemisphere sky = deep blue-purple city glow (NOT near-black)
+        Ground = dark but not #000
+        Directional = soft moonlight from upper-left
+        Front fill = keeps car/obstacle faces readable
+        Fog = pushed to z=60 so road is always fully visible
       */}
-      <hemisphereLight args={['#1a0a3a', '#050010', 0.9]} />
-      <directionalLight position={[2, 12, 8]} intensity={0.5} color="#8866cc" />
-      {/* Subtle front fill — keeps car face readable */}
-      <directionalLight position={[0, 3, 14]} intensity={0.25} color="#334466" />
-      {/* Cinematic fog — starts close, fades to deep purple-black */}
-      <fog attach="fog" args={['#06001a', 40, 120]} />
+      <hemisphereLight args={['#1a1040', '#0a0820', 1.8]} />
+      <directionalLight position={[-4, 16, 10]} intensity={0.9} color="#7060c0" />
+      <directionalLight position={[0, 4, 16]}   intensity={0.5} color="#4466aa" />
+      <fog attach="fog" args={['#08041a', 60, 140]} />
 
       <Road speedRef={speedRef} />
       <Environment speedRef={speedRef} />
@@ -55,7 +52,6 @@ export default function GameScene({ targetLaneRef, carXRef, speedRef, shakeRef, 
             targetLaneRef={targetLaneRef}
             carXRef={carXRef}
             shakeRef={shakeRef}
-            crashedRef={crashedRef}
             speedRef={speedRef}
           />
           <Obstacles
@@ -64,7 +60,7 @@ export default function GameScene({ targetLaneRef, carXRef, speedRef, shakeRef, 
             crashedRef={crashedRef}
             shakeRef={shakeRef}
             slowMoRef={slowMoRef}
-            onCrash={handleCrash}
+            onCrash={crash}
           />
         </>
       )}

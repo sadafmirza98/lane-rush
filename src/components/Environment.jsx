@@ -3,74 +3,72 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { ROAD_WIDTH, ROAD_LENGTH } from '../game/constants'
 
-/*
-  Environment philosophy:
-  - City silhouettes: dark, massive, atmospheric — NOT neon blocks
-  - Sparse window lights: a few bright dots, not glowing surfaces
-  - Two streetlight rows: warm-white cones on road, nothing else
-  - One distant skyline layer: depth illusion, zero geometry cost
-  - NO holographic billboards, NO rooftop neon, NO random point lights
-  - Parallax: near buildings scroll faster than far skyline
-*/
-
-// Seeded random for consistent layout
 function seededRand(seed) {
   let s = seed
-  return () => { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646 }
+  return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646 }
 }
 
 export default function Environment({ speedRef }) {
-  const nearBuildRef = useRef([])
-  const farBuildRef  = useRef([])
-  const lightRef     = useRef([])
-  const offsetNear   = useRef(0)
-  const offsetFar    = useRef(0)
-  const timeRef      = useRef(0)
+  const nearRef  = useRef([])
+  const farRef   = useRef([])
+  const lightRef = useRef([])
+  const offNear  = useRef(0)
+  const offFar   = useRef(0)
+  const timeRef  = useRef(0)
 
-  const NEAR_REPEAT = 80
-  const FAR_REPEAT  = 120
+  const NEAR_REPEAT = 88
+  const FAR_REPEAT  = 130
   const SIDE = ROAD_WIDTH / 2
 
-  // Near buildings — closer, scroll faster, more detail
+  // Near buildings — visible, lit, believable
   const nearBuildings = useMemo(() => {
     const rng = seededRand(42)
-    return Array.from({ length: 16 }, (_, i) => {
+    return Array.from({ length: 14 }, (_, i) => {
       const side = i % 2 === 0 ? -1 : 1
-      const x    = side * (SIDE + 4 + rng() * 6)
-      const h    = 5 + rng() * 12
-      const w    = 3 + rng() * 5
-      const d    = 3 + rng() * 4
-      const z    = -(i * 10) % NEAR_REPEAT
-      // Windows: 2-4 lit windows per building
-      const wins = Array.from({ length: Math.floor(rng() * 3) + 1 }, () => ({
-        wx: (rng() - 0.5) * (w - 0.6),
-        wy: rng() * h * 0.7 + h * 0.15,
-        wc: rng() > 0.5 ? '#ffe8c0' : '#c0d8ff',
-      }))
+      const x    = side * (SIDE + 5 + rng() * 5)
+      const h    = 6 + rng() * 14
+      const w    = 3.5 + rng() * 4
+      const d    = 3 + rng() * 3
+      const z    = -(i * 12) % NEAR_REPEAT
+      // Window grid — rows of lit windows
+      const winRows = Math.floor(h / 2.2)
+      const winCols = Math.floor(w / 1.4)
+      const wins = []
+      for (let r = 0; r < winRows; r++) {
+        for (let c = 0; c < winCols; c++) {
+          if (rng() > 0.45) { // ~55% of windows lit
+            wins.push({
+              x: (c - (winCols - 1) / 2) * 1.3,
+              y: 1.2 + r * 2.1,
+              lit: rng() > 0.3,
+              warm: rng() > 0.5,
+            })
+          }
+        }
+      }
       return { x, h, w, d, z, wins, side }
     })
   }, [])
 
-  // Far buildings — distant, slow parallax, just silhouettes
+  // Far buildings — silhouettes with occasional lit tops
   const farBuildings = useMemo(() => {
-    const rng = seededRand(99)
-    return Array.from({ length: 20 }, (_, i) => {
+    const rng = seededRand(77)
+    return Array.from({ length: 18 }, (_, i) => {
       const side = i % 2 === 0 ? -1 : 1
-      const x    = side * (SIDE + 18 + rng() * 20)
-      const h    = 12 + rng() * 28
-      const w    = 4 + rng() * 8
-      const z    = -(i * 12) % FAR_REPEAT
-      return { x, h, w, z, side }
+      const x    = side * (SIDE + 20 + rng() * 18)
+      const h    = 15 + rng() * 30
+      const w    = 5 + rng() * 9
+      const z    = -(i * 14) % FAR_REPEAT
+      const topColor = ['#ff1a6e', '#4466ff', '#aa44ff', '#ff8800'][Math.floor(rng() * 4)]
+      return { x, h, w, z, topColor }
     })
   }, [])
 
-  // Streetlights — simple, functional, warm
+  // Streetlights — warm white, evenly spaced
   const streetlights = useMemo(() => {
-    return Array.from({ length: 14 }, (_, i) => {
+    return Array.from({ length: 12 }, (_, i) => {
       const side = i % 2 === 0 ? -1 : 1
-      const x    = side * (SIDE + 1.5)
-      const z    = -(i * 11) % NEAR_REPEAT
-      return { x, z, side }
+      return { x: side * (SIDE + 1.6), z: -(i * 14) % NEAR_REPEAT, side }
     })
   }, [])
 
@@ -79,151 +77,177 @@ export default function Environment({ speedRef }) {
     timeRef.current += delta
     const spd = speedRef.current
 
-    offsetNear.current = (offsetNear.current + spd * delta * 60) % NEAR_REPEAT
-    offsetFar.current  = (offsetFar.current  + spd * delta * 30) % FAR_REPEAT  // half speed = parallax
+    offNear.current = (offNear.current + spd * delta * 60) % NEAR_REPEAT
+    offFar.current  = (offFar.current  + spd * delta * 28) % FAR_REPEAT
 
-    nearBuildRef.current.forEach((mesh, i) => {
-      if (!mesh) return
-      let z = nearBuildings[i].z + offsetNear.current
-      while (z > 8) z -= NEAR_REPEAT
-      mesh.position.z = z
+    nearRef.current.forEach((m, i) => {
+      if (!m) return
+      let z = nearBuildings[i].z + offNear.current
+      while (z > 10) z -= NEAR_REPEAT
+      m.position.z = z
     })
-
-    farBuildRef.current.forEach((mesh, i) => {
-      if (!mesh) return
-      let z = farBuildings[i].z + offsetFar.current
-      while (z > 8) z -= FAR_REPEAT
-      mesh.position.z = z
+    farRef.current.forEach((m, i) => {
+      if (!m) return
+      let z = farBuildings[i].z + offFar.current
+      while (z > 10) z -= FAR_REPEAT
+      m.position.z = z
     })
-
-    lightRef.current.forEach((mesh, i) => {
-      if (!mesh) return
-      let z = streetlights[i].z + offsetNear.current
-      while (z > 8) z -= NEAR_REPEAT
-      mesh.position.z = z
+    lightRef.current.forEach((m, i) => {
+      if (!m) return
+      let z = streetlights[i].z + offNear.current
+      while (z > 10) z -= NEAR_REPEAT
+      m.position.z = z
     })
   })
 
   return (
     <group>
-      {/* ── Sky — deep near-black purple ── */}
-      <mesh position={[0, 20, -60]} rotation={[0.08, 0, 0]}>
-        <planeGeometry args={[300, 80]} />
-        <meshBasicMaterial color="#04000f" side={THREE.DoubleSide} />
+      {/* ── Sky — deep blue-purple, NOT black ── */}
+      <mesh position={[0, 22, -70]}>
+        <planeGeometry args={[400, 90]} />
+        <meshBasicMaterial color="#0c0828" side={THREE.DoubleSide} />
       </mesh>
 
-      {/* ── Horizon glow — single soft band, not multiple layers ── */}
-      <mesh position={[0, 2.5, -98]}>
-        <planeGeometry args={[300, 8]} />
-        <meshBasicMaterial color="#1a0040" transparent opacity={0.55} side={THREE.DoubleSide} />
+      {/* ── City ambient glow on horizon — makes sky feel inhabited ── */}
+      <mesh position={[0, 8, -100]}>
+        <planeGeometry args={[400, 20]} />
+        <meshBasicMaterial color="#1a1040" transparent opacity={0.8} side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[0, 0.8, -98]}>
-        <planeGeometry args={[300, 2.5]} />
-        <meshBasicMaterial color="#3a0060" transparent opacity={0.22} side={THREE.DoubleSide} />
+      <mesh position={[0, 3, -100]}>
+        <planeGeometry args={[400, 8]} />
+        <meshBasicMaterial color="#2a1060" transparent opacity={0.5} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 1, -100]}>
+        <planeGeometry args={[400, 3]} />
+        <meshBasicMaterial color="#ff1a6e" transparent opacity={0.08} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* ── Ground plane — dark, slightly reflective ── */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, -ROAD_LENGTH / 2]}>
+      {/* ── Ground — dark tarmac, not void ── */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.06, -ROAD_LENGTH / 2]}>
         <planeGeometry args={[300, ROAD_LENGTH]} />
-        <meshStandardMaterial color="#060412" roughness={0.9} />
+        <meshStandardMaterial color="#0e0c18" roughness={0.92} />
       </mesh>
 
-      {/* ── Far buildings — pure silhouettes, no lights ── */}
+      {/* ── Far buildings — silhouettes with lit tops ── */}
       {farBuildings.map((b, i) => (
-        <mesh
-          key={i}
-          ref={el => farBuildRef.current[i] = el}
-          position={[b.x, b.h / 2, b.z]}
-        >
-          <boxGeometry args={[b.w, b.h, 2]} />
-          <meshStandardMaterial
-            color="#0c0820"
-            roughness={0.9}
-            metalness={0.1}
-            emissive="#0c0820"
-            emissiveIntensity={0.15}
-          />
-        </mesh>
-      ))}
-
-      {/* ── Near buildings — dark with sparse window lights ── */}
-      {nearBuildings.map((b, i) => (
-        <group key={i} ref={el => nearBuildRef.current[i] = el} position={[b.x, 0, b.z]}>
-          {/* Building body */}
+        <group key={i} ref={el => farRef.current[i] = el} position={[b.x, 0, b.z]}>
+          {/* Body */}
           <mesh position={[0, b.h / 2, 0]}>
-            <boxGeometry args={[b.w, b.h, b.d]} />
-            <meshStandardMaterial
-              color="#100c22"
-              roughness={0.7}
-              metalness={0.3}
-              emissive="#0a0818"
-              emissiveIntensity={0.2}
-            />
+            <boxGeometry args={[b.w, b.h, 1.5]} />
+            <meshStandardMaterial color="#0e0c20" roughness={0.8} emissive="#0a0818" emissiveIntensity={0.3} />
           </mesh>
-          {/* Sparse window lights — small bright dots only */}
-          {b.wins.map((win, j) => (
-            <mesh key={j} position={[win.wx, win.wy, b.side > 0 ? -b.d / 2 - 0.01 : b.d / 2 + 0.01]}>
-              <planeGeometry args={[0.35, 0.5]} />
-              <meshBasicMaterial color={win.wc} transparent opacity={0.7} />
-            </mesh>
-          ))}
-          {/* Rooftop antenna — single thin line, no glow */}
-          {b.h > 12 && (
-            <mesh position={[0, b.h + 0.8, 0]}>
-              <cylinderGeometry args={[0.04, 0.04, 1.6, 4]} />
-              <meshStandardMaterial color="#1a1430" roughness={0.8} />
+          {/* Lit rooftop edge — gives skyline definition */}
+          <mesh position={[0, b.h + 0.08, 0]}>
+            <boxGeometry args={[b.w + 0.1, 0.12, 1.6]} />
+            <meshBasicMaterial color={b.topColor} transparent opacity={0.7} />
+          </mesh>
+          {/* Antenna */}
+          {b.h > 25 && (
+            <mesh position={[0, b.h + 1.5, 0]}>
+              <cylinderGeometry args={[0.05, 0.05, 3, 4]} />
+              <meshBasicMaterial color={b.topColor} transparent opacity={0.6} />
             </mesh>
           )}
         </group>
       ))}
 
-      {/* ── Streetlights — warm white cone, minimal geometry ── */}
-      {streetlights.map((sl, i) => (
-        <group key={i} ref={el => lightRef.current[i] = el} position={[sl.x, 0, sl.z]}>
-          {/* Pole */}
-          <mesh position={[0, 2.5, 0]}>
-            <cylinderGeometry args={[0.055, 0.07, 5, 5]} />
-            <meshStandardMaterial color="#1a1430" roughness={0.7} metalness={0.5} />
+      {/* ── Near buildings — visible, with window grids ── */}
+      {nearBuildings.map((b, i) => (
+        <group key={i} ref={el => nearRef.current[i] = el} position={[b.x, 0, b.z]}>
+          {/* Building body — dark but visible */}
+          <mesh position={[0, b.h / 2, 0]}>
+            <boxGeometry args={[b.w, b.h, b.d]} />
+            <meshStandardMaterial
+              color="#14102a"
+              roughness={0.65}
+              metalness={0.2}
+              emissive="#0c0a1e"
+              emissiveIntensity={0.4}
+            />
           </mesh>
-          {/* Arm */}
-          <mesh
-            position={[sl.side * -0.55, 5.1, 0]}
-            rotation={[0, 0, sl.side * 0.22]}
-          >
-            <cylinderGeometry args={[0.04, 0.04, 1.3, 5]} />
-            <meshStandardMaterial color="#1a1430" roughness={0.7} metalness={0.5} />
+          {/* Window grid — the key to making buildings feel real */}
+          {b.wins.map((win, j) => (
+            <mesh
+              key={j}
+              position={[
+                win.x,
+                win.y,
+                b.side > 0 ? -b.d / 2 - 0.02 : b.d / 2 + 0.02,
+              ]}
+            >
+              <planeGeometry args={[0.55, 0.75]} />
+              <meshBasicMaterial
+                color={win.warm ? '#ffe8c0' : '#c8d8ff'}
+                transparent
+                opacity={win.lit ? 0.75 : 0.15}
+              />
+            </mesh>
+          ))}
+          {/* Rooftop neon edge — one per building, subtle */}
+          <mesh position={[0, b.h + 0.06, 0]}>
+            <boxGeometry args={[b.w + 0.08, 0.1, b.d + 0.08]} />
+            <meshBasicMaterial
+              color={i % 3 === 0 ? '#ff1a6e' : i % 3 === 1 ? '#4466ff' : '#aa44ff'}
+              transparent opacity={0.55}
+            />
           </mesh>
-          {/* Light head — small, warm white */}
-          <mesh position={[sl.side * -1.0, 5.1, 0]}>
-            <boxGeometry args={[0.28, 0.14, 0.28]} />
-            <meshBasicMaterial color="#fff4e0" />
-          </mesh>
-          {/* Cone light on road — the ONLY point light in environment */}
-          <pointLight
-            color="#ffe8b0"
-            intensity={12}
-            distance={14}
-            decay={2}
-            position={[sl.side * -1.0, 4.9, 0]}
-          />
         </group>
       ))}
 
-      {/* ── Distant skyline — flat planes, zero draw cost ── */}
-      {/* Layer 1: mid-distance towers */}
-      {[-55, -38, -22, 22, 38, 55].map((x, i) => (
-        <mesh key={i} position={[x, 10 + (i % 3) * 6, -92]}>
-          <boxGeometry args={[5 + (i % 2) * 3, 20 + (i % 3) * 12, 0.5]} />
-          <meshBasicMaterial color="#0a0620" transparent opacity={0.95} />
+      {/* ── Streetlights — warm white, functional ── */}
+      {streetlights.map((sl, i) => (
+        <group key={i} ref={el => lightRef.current[i] = el} position={[sl.x, 0, sl.z]}>
+          <mesh position={[0, 2.8, 0]}>
+            <cylinderGeometry args={[0.06, 0.08, 5.6, 6]} />
+            <meshStandardMaterial color="#1c1830" roughness={0.7} metalness={0.6} />
+          </mesh>
+          <mesh position={[sl.side * -0.6, 5.6, 0]} rotation={[0, 0, sl.side * 0.2]}>
+            <cylinderGeometry args={[0.04, 0.04, 1.4, 5]} />
+            <meshStandardMaterial color="#1c1830" roughness={0.7} metalness={0.6} />
+          </mesh>
+          <mesh position={[sl.side * -1.1, 5.6, 0]}>
+            <boxGeometry args={[0.32, 0.16, 0.32]} />
+            <meshBasicMaterial color="#fff8e8" />
+          </mesh>
+          <pointLight color="#ffe8b0" intensity={20} distance={16} decay={2} position={[sl.side * -1.1, 5.4, 0]} />
+        </group>
+      ))}
+
+      {/* ── Distant skyline — 3 depth layers, zero scroll cost ── */}
+      {/* Layer A — closest, tallest */}
+      {[-48, -32, -18, 18, 32, 48].map((x, i) => (
+        <group key={`a${i}`} position={[x, 0, -88]}>
+          <mesh position={[0, 11 + (i % 3) * 5, 0]}>
+            <boxGeometry args={[6 + (i % 2) * 3, 22 + (i % 3) * 10, 1]} />
+            <meshStandardMaterial color="#100e22" roughness={0.8} emissive="#0c0a1c" emissiveIntensity={0.3} />
+          </mesh>
+          <mesh position={[0, 22 + (i % 3) * 5 + 0.1, 0]}>
+            <boxGeometry args={[6.1 + (i % 2) * 3, 0.14, 1.1]} />
+            <meshBasicMaterial color={['#ff1a6e','#4466ff','#aa44ff'][i % 3]} transparent opacity={0.6} />
+          </mesh>
+        </group>
+      ))}
+      {/* Layer B — mid distance */}
+      {[-70, -52, -35, 35, 52, 70].map((x, i) => (
+        <group key={`b${i}`} position={[x, 0, -94]}>
+          <mesh position={[0, 18 + (i % 2) * 8, 0]}>
+            <boxGeometry args={[7 + (i % 3) * 2, 36 + (i % 2) * 12, 1]} />
+            <meshStandardMaterial color="#0c0a1e" roughness={0.9} emissive="#080618" emissiveIntensity={0.25} />
+          </mesh>
+        </group>
+      ))}
+      {/* Layer C — farthest, just silhouettes */}
+      {[-90, -65, -42, 42, 65, 90].map((x, i) => (
+        <mesh key={`c${i}`} position={[x, 22 + (i % 3) * 6, -99]}>
+          <boxGeometry args={[8 + (i % 2) * 4, 44 + (i % 3) * 14, 0.5]} />
+          <meshBasicMaterial color="#080618" transparent opacity={0.95} />
         </mesh>
       ))}
-      {/* Layer 2: far background towers */}
-      {[-80, -60, -40, 40, 60, 80].map((x, i) => (
-        <mesh key={i} position={[x, 16 + (i % 2) * 8, -96]}>
-          <boxGeometry args={[6 + (i % 3) * 2, 32 + (i % 2) * 14, 0.5]} />
-          <meshBasicMaterial color="#070418" transparent opacity={0.9} />
-        </mesh>
-      ))}
+
+      {/* ── City ambient fill lights — illuminate near buildings ── */}
+      <pointLight position={[-ROAD_WIDTH/2 - 8, 12, -30]} color="#3322aa" intensity={6} distance={40} decay={1.5} />
+      <pointLight position={[ ROAD_WIDTH/2 + 8, 12, -30]} color="#2233aa" intensity={6} distance={40} decay={1.5} />
+      <pointLight position={[0, 10, -60]} color="#221144" intensity={5} distance={50} decay={1.5} />
     </group>
   )
 }
