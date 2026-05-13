@@ -2,60 +2,55 @@ import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
-/*
-  NFS-style cinematic chase camera:
-  - Low angle (y=1.8) — road fills the frame, car feels large
-  - Inertia on X follow — camera lags behind lane changes
-  - Speed pushback — camera pulls back slightly at high speed
-  - FOV expands with speed (tunnel effect)
-  - Crash: camera rises, slows, dramatic pull-back
-  - Subtle breathing (very slow sine on Y)
-*/
-export default function CinematicCamera({ carXRef, speedRef, shakeRef, crashedRef, phase }) {
+export default function CinematicCamera({ carXRef, speedRef, shakeRef, crashedRef }) {
   const { camera } = useThree()
 
-  // Smooth camera state — all lerped
-  const posRef  = useRef(new THREE.Vector3(0, 1.8, 5.5))
-  const lookRef = useRef(new THREE.Vector3(0, 0.8, -18))
-  const fovRef  = useRef(68)
-  const rollRef = useRef(0)   // subtle roll on lane change
-  const timeRef = useRef(0)
+  const posRef   = useRef(new THREE.Vector3(0, 1.65, 5.2))
+  const lookRef  = useRef(new THREE.Vector3(0, 0.55, -20))
+  const fovRef   = useRef(66)
+  const rollRef  = useRef(0)
+  const timeRef  = useRef(0)
   const prevXRef = useRef(0)
+  const velXRef  = useRef(0)  // camera X velocity for inertia
 
   useFrame((_, delta) => {
     timeRef.current += delta
 
     const speed   = speedRef?.current  ?? 0.55
     const carX    = carXRef?.current   ?? 0
-    const shake   = shakeRef?.current  ?? 0
     const crashed = crashedRef?.current ?? false
 
-    // ── FOV: 65 idle → 82 max speed, 52 on crash ──
-    const targetFov = crashed ? 52 : 65 + (speed / 2.2) * 17
-    fovRef.current += (targetFov - fovRef.current) * Math.min(delta * 2.5, 1)
+    // ── FOV — speed tunnel effect ──
+    // 64 at rest → 80 at max speed, 50 on crash
+    const speedT   = Math.min(speed / 2.2, 1)
+    const targetFov = crashed ? 50 : 64 + speedT * 16
+    fovRef.current += (targetFov - fovRef.current) * Math.min(delta * 2.2, 1)
     camera.fov = fovRef.current
     camera.updateProjectionMatrix()
 
-    // ── Camera position ──
-    // X: follows car with heavy lag (inertia feel)
-    const targetCamX = carX * 0.18
-    posRef.current.x += (targetCamX - posRef.current.x) * Math.min(delta * 3.5, 1)
+    // ── Camera X — inertia-based follow ──
+    // Velocity accumulates, then decays — feels like a heavy camera rig
+    const targetCamX = carX * 0.16
+    velXRef.current += (targetCamX - posRef.current.x) * delta * 4
+    velXRef.current *= Math.pow(0.88, delta * 60)  // exponential decay
+    posRef.current.x += velXRef.current * delta * 60
 
-    // Y: low angle always; rises on crash; subtle breath
-    const breath = Math.sin(timeRef.current * 0.4) * 0.04
-    const targetCamY = crashed ? 4.5 : 1.75 + breath
-    posRef.current.y += (targetCamY - posRef.current.y) * Math.min(delta * (crashed ? 1.5 : 4), 1)
+    // ── Camera Y — low angle, rises on crash ──
+    const breathY    = Math.sin(timeRef.current * 0.35) * 0.03
+    const targetCamY = crashed ? 4.8 : 1.62 + breathY
+    posRef.current.y += (targetCamY - posRef.current.y) * Math.min(delta * (crashed ? 1.2 : 3.5), 1)
 
-    // Z: speed pushback — faster = camera pulls back slightly
-    const targetCamZ = crashed ? 10 : 5.2 + (speed / 2.2) * 1.2
-    posRef.current.z += (targetCamZ - posRef.current.z) * Math.min(delta * 3, 1)
+    // ── Camera Z — speed pushback ──
+    const targetCamZ = crashed ? 11 : 5.0 + speedT * 1.4
+    posRef.current.z += (targetCamZ - posRef.current.z) * Math.min(delta * 2.8, 1)
 
-    // ── Camera shake on crash ──
+    // ── Crash shake ──
     let sx = 0, sy = 0
-    if (shake > 0) {
-      shakeRef.current = Math.max(0, shake - delta * 3.5)
-      sx = (Math.random() - 0.5) * shake * 0.18
-      sy = (Math.random() - 0.5) * shake * 0.12
+    if (shakeRef.current > 0) {
+      shakeRef.current = Math.max(0, shakeRef.current - delta * 3.2)
+      const mag = shakeRef.current
+      sx = (Math.random() - 0.5) * mag * 0.2
+      sy = (Math.random() - 0.5) * mag * 0.14
     }
 
     camera.position.set(
@@ -65,24 +60,21 @@ export default function CinematicCamera({ carXRef, speedRef, shakeRef, crashedRe
     )
 
     // ── Look target ──
-    // X: slight lead ahead of car
-    const targetLookX = carX * 0.12
-    lookRef.current.x += (targetLookX - lookRef.current.x) * Math.min(delta * 5, 1)
+    const targetLookX = carX * 0.1
+    lookRef.current.x += (targetLookX - lookRef.current.x) * Math.min(delta * 4.5, 1)
 
-    // Y: look slightly above road
-    const targetLookY = crashed ? 2.0 : 0.65
-    lookRef.current.y += (targetLookY - lookRef.current.y) * Math.min(delta * 3, 1)
+    const targetLookY = crashed ? 2.2 : 0.55
+    lookRef.current.y += (targetLookY - lookRef.current.y) * Math.min(delta * 2.8, 1)
 
-    // Z: look far ahead — creates depth
-    const targetLookZ = crashed ? -4 : -20
-    lookRef.current.z += (targetLookZ - lookRef.current.z) * Math.min(delta * 4, 1)
+    const targetLookZ = crashed ? -3 : -22
+    lookRef.current.z += (targetLookZ - lookRef.current.z) * Math.min(delta * 3.5, 1)
 
     camera.lookAt(lookRef.current)
 
-    // ── Subtle roll on lane change (drift feel) ──
+    // ── Roll — drift tilt on lane change ──
     const dX = carX - prevXRef.current
     prevXRef.current = carX
-    rollRef.current += (-dX * 0.012 - rollRef.current) * Math.min(delta * 6, 1)
+    rollRef.current += (-dX * 0.014 - rollRef.current) * Math.min(delta * 5.5, 1)
     camera.rotation.z = rollRef.current
   })
 

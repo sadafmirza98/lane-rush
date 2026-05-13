@@ -31,48 +31,38 @@ export default function GameScene({ targetLaneRef, carXRef, speedRef, shakeRef, 
   return (
     <>
       {/*
-        LIGHTING — night city, not void:
-        Hemisphere sky = deep blue-purple city glow (NOT near-black)
-        Ground = dark but not #000
-        Directional = soft moonlight from upper-left
-        Front fill = keeps car/obstacle faces readable
-        Fog = pushed to z=60 so road is always fully visible
+        NFS-style night lighting:
+        - Hemisphere: overcast night sky (blue-grey) / dark wet ground
+        - Key: cool moonlight from upper-left, casts shadows
+        - Fill: very soft warm from front-right, prevents pure black faces
+        - Fog: dense, starts at 50, city disappears at 120
       */}
-      <hemisphereLight args={['#1a1040', '#0a0820', 1.8]} />
-      <directionalLight position={[-4, 16, 10]} intensity={0.9} color="#7060c0" />
-      <directionalLight position={[0, 4, 16]}   intensity={0.5} color="#4466aa" />
-      <fog attach="fog" args={['#08041a', 60, 140]} />
+      <hemisphereLight args={['#1a2035', '#0a0c10', 2.5]} />
+      <directionalLight
+        position={[-8, 20, 6]} intensity={1.2} color="#8090c0"
+        castShadow shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-25} shadow-camera-right={25}
+        shadow-camera-top={25}  shadow-camera-bottom={-25}
+        shadow-camera-far={100} shadow-bias={-0.001}
+      />
+      <directionalLight position={[6, 4, 20]} intensity={0.3} color="#c0a060" />
+      <fog attach="fog" args={['#080c14', 50, 120]} />
 
       <Road speedRef={speedRef} />
       <Environment speedRef={speedRef} />
 
       {phase !== 'menu' && (
         <>
-          <PlayerCar
-            targetLaneRef={targetLaneRef}
-            carXRef={carXRef}
-            shakeRef={shakeRef}
-            speedRef={speedRef}
-          />
+          <PlayerCar targetLaneRef={targetLaneRef} carXRef={carXRef} shakeRef={shakeRef} speedRef={speedRef} />
           <Obstacles
-            speedRef={speedRef}
-            carXRef={carXRef}
-            crashedRef={crashedRef}
-            shakeRef={shakeRef}
-            slowMoRef={slowMoRef}
-            onCrash={crash}
+            speedRef={speedRef} carXRef={carXRef}
+            crashedRef={crashedRef} shakeRef={shakeRef}
+            slowMoRef={slowMoRef} onCrash={crash}
           />
         </>
       )}
 
-      <CinematicCamera
-        carXRef={carXRef}
-        speedRef={speedRef}
-        shakeRef={shakeRef}
-        crashedRef={crashedRef}
-        phase={phase}
-      />
-
+      <CinematicCamera carXRef={carXRef} speedRef={speedRef} shakeRef={shakeRef} crashedRef={crashedRef} phase={phase} />
       <PostFX speedRef={speedRef} />
     </>
   )
